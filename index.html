@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pie chart SVG builder</title>
+<style>
+:root{--bg:#f5f7fa;--panel:#fff;--ink:#00264b;--mute:#5b6f85;--line:#d5dde6;--accent:#3fa9b3;--accent-ink:#fff;--warn:#a4452c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1a2b;--panel:#12263b;--ink:#e6eef6;--mute:#93a7bb;--line:#26405a;--accent:#4fc0cb;--accent-ink:#00264b;--warn:#f0a58f}}
+:root[data-theme="dark"]{--bg:#0b1a2b;--panel:#12263b;--ink:#e6eef6;--mute:#93a7bb;--line:#26405a;--accent:#4fc0cb;--accent-ink:#00264b;--warn:#f0a58f}
+html{color-scheme:light dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "GT Eesti Pro Display",system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;margin:0 0 4px;font-weight:600}
+p.lead{margin:0 0 20px;color:var(--mute);max-width:66ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+label{display:block;font-size:13px;color:var(--mute);margin:0 0 4px}
+textarea,input{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+textarea{min-height:220px;font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflow:auto}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.opts{display:grid;grid-template-columns:2fr 3fr 1fr;gap:12px;margin-top:12px}
+@media (max-width:640px){.opts{grid-template-columns:1fr}}
+button{font:inherit;cursor:pointer;border-radius:6px;padding:7px 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.bar{display:flex;gap:8px;align-items:center;margin:20px 0 12px}
+.bar h2{margin:0;font-size:16px;font-weight:600;flex:1}
+.card{margin-bottom:16px}
+.card header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.card h3{margin:0;font-size:15px;flex:1;font-weight:600}
+.card h3 small{font-weight:400;color:var(--mute);margin-left:8px}
+.prev{background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px}
+.prev svg{display:block;width:100%;height:auto;margin:0 auto}
+.note{font-size:13px;color:var(--mute);margin:8px 0 0}
+.warn{color:var(--warn)}
+.prev.dark{background:#00264b;border-color:#00264b}
+.regions{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:6px}
+.regions label{display:flex;align-items:center;gap:6px;margin:0;font-size:14px;color:var(--ink);cursor:pointer}
+.regions input{width:auto;margin:0;accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>Pie chart SVG builder</h1>
+<p class="lead">Paste the whole data sheet. The app finds the chart blocks by their titles and builds each one at its own size, ready to drop into Figma.</p>
+<div class="panel">
+<label for="data">Spreadsheet data (copied straight from your sheet, so cells are tab separated)</label>
+<textarea id="data" spellcheck="false"></textarea>
+<div class="opts">
+<div><label for="title">Country of qualification title</label><input id="title" value="Country of qualification"></div>
+<div><label for="fname">File name ({chart} and {region} are replaced)</label><input id="fname" value="{chart} - {region}"></div>
+<div><label for="lead">Leader run, charts 1, 3, 4</label><input id="lead" type="number" min="3" max="30" step="1" value="8"></div>
+</div>
+</div>
+<div class="bar"><h2 id="count"></h2><button class="pri" id="all" hidden>Download all</button></div>
+<div id="out"></div>
+<p class="note">The preview uses a fallback font and shows labels centred. The downloaded SVG uses GT Eesti Pro Display, with each label as one text layer and soft line breaks. In Figma, select the labels and click centre align once. They stay in place.</p>
+</main>
+<script>
+const PAL=['#3FA9B3','#405C78','#99D1D7','#BFC9D2','#00264B','#7F93A5','#FF725E','#F2C14E'];
+const IE={W:345,H:192,cy:106,r:58,g:14,total:50,title:1,ttl:'International experience',cols:{yes:'#3FA9B3',no:'#7F93A5'}};
+const T={
+ country:{name:'Country of qualification',W:366,H:188,cx:169,cy:107,r:54,g:16,title:1,tx:79.14,cols:PAL.slice(0,4)},
+ intl3:{...IE,name:'International experience (page 3)'},
+ marital:{name:'Marital status',W:348,H:225,cy:121,r:70,g:16,title:1,ttl:'Marital status',cols:{single:'#3FA9B3',married:'#99D1D7','living with partner / other':'#405C78'}},
+ dep:{name:'Dependents',W:419,H:249,cy:135,r:75,g:16,title:1,ttl:'Dependents',cols:['#3FA9B3','#99D1D7','#405C78','#00264B','#BFC9D2']},
+ intl6:{...IE,W:376,H:212.73,cy:117,r:63,name:'International experience (page 6)'},
+ curric:{name:'Curriculum experience (page 4)',W:206,H:240,bar:1,cols:['#3FA9B3','#FF725E','#99D1D7']},
+ age:{name:'Age distribution (page 4)',W:522,H:228,age:1,G:{AX0:62.156,AX1:513.797,AY0:175.778,AY1:44.1079,bb:175.908,ts:11,yx:57.45,yo:2.35,xy:189.31,yt:[26.18,105.2],xt:[294.37,210.11],tt:[278.8,15]}},
+ age6:{name:'Age distribution (page 6)',W:684,H:228,age:1,pat:['#405C78','#3FA9B3','#405C78','#3FA9B3','#3FA9B3','#405C78','#3FA9B3','#405C78','#3FA9B3'],G:{AX0:70.6208,AX1:668.455,AY0:181.197,AY1:39.7285,bb:181.315,ts:13,yx:67.58,yo:3.2,xy:195.46,yt:[23.48,104.4],xt:[368.63,219],tt:[357.75,17]}},
+ cmp:{name:'Country of qualification (page 5)',W:654,H:360,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
+ curric6:{name:'Curriculum experience (page 6)',W:574,H:321,cols:['#3FA9B3','#FF725E','#99D1D7']},
+ marital8:{name:'Marital status (page 8)',W:639,H:240,stack:1,light:1,lw:62,cols:['#3FA9B3','#99D1D7','#405C78']},
+ dep8:{name:'Dependents (page 8)',W:639,H:240,stack:1,light:1,lw:58,cols:['#3FA9B3','#99D1D7','#405C78','#00264B','#7F93A5']},
+ appvac:{name:'Applications vs vacancies (page 9)',W:947,H:273,div:1,dark:1,G:{x0:46.839,x1:931.1,yt:12.268,yb:247.629,lo:-30,hi:50,lx:41,ly:4.04,cy:264.751,axo:.12}},
+ candpref:{name:'Candidate preferences (page 11)',W:651,H:460,cs:1,dark:1,cols:['#FF725E','#3FA9B3','#99D1D7','#405C78','#00264B','#7F93A5'],
+  G:{x0:40.0142,x1:635.756,yt:21.4631,yb:329.106,lo:0,hi:90,lx:34.4,ly:2.4,axo:.193,cy:349.704,lh:15,wrap:82,bwr:.3996,lc:[93.9,221.85,337.82,458.1,579.5],
+   sqW:8,sqY:[409.619,418.381],legY:418.238,legC:325.5,legO:12.75,legG:13.1,leg:{essential:[254,266.85],important:[328,340.6]}}},
+ salary:{name:'Salaries box and whisker (page 13)',W:756,H:245,box:1,light:1},
+ flight:{name:'Flight allowance (page 15)',W:648,H:225,stack:1,lw:58,cols:['#FF725E','#3FA9B3','#99D1D7','#405C78','#7F93A5','#BFC9D2']},
+ reloc:{name:'Relocation allowance (page 15)',W:648,H:225,stack:1,lw:60,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
+ housing:{name:'Housing benefits (page 16)',W:670,H:227,stack:1,lw:85,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
+ medical:{name:'Medical benefits (page 16)',W:648,H:227,stack:1,lw:64,cols:['#3FA9B3','#BFC9D2']},
+ pd:{name:'Professional development budget (page 17)',W:546,H:219,stack:1,light:1,lw:64,cols:['#3FA9B3','#BFC9D2']},
+ tuition:{name:'Tuition fee subsidy (page 17)',W:562,H:222,stack:1,light:1,lw:64,cols:['#3FA9B3','#99D1D7','#BFC9D2']}
+};
+const LH=15.2,FS=13,$=id=>document.getElementById(id);
+const rad=d=>d*Math.PI/180,f=n=>+n.toFixed(2),isNum=v=>/^-?\d+(\.\d+)?%?$/.test(v||'');
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const cw=c=>/[A-Z]/.test(c)?.66:/[a-z]/.test(c)?.52:/\d/.test(c)?.55:/[.,]/.test(c)?.25:c===' '?.27:c==='%'?.8:.55;
+const tw=s=>[...s].reduce((a,c)=>a+cw(c),0)*FS*.88;
+const S=[['Country of qualification'],['region','UK, IRL, US, CA, AUS, NZ','SA','EU','Other'],['JPA','43.1%','16.3%','3.3%','37.3%'],[],['International experience (slide 3)'],['Yes','83.8%'],['No','16.2%'],[],['International experience (slide 6)'],['','Global'],['Yes','83.2%'],['No','16.8%'],[],['Marital status'],['','JPA'],['Single','53.2%'],['Married','39.1%'],['Living with partner / Other','7.8%'],[],['Dependents'],['region','JPA'],['0 dependents','66.2%'],['1 dependent','18.1%'],['2 dependents','10.6%'],['3 dependents','5.1%'],['4+ dependents','0.0%'],[],['Curriculum experience'],['region','JPA'],['IB','29.3%'],['British','44.7%'],['American','25.8%'],[],['Age range'],['region','Under 25','26\u201330','31\u201335','36\u201340','41\u201345','46\u201350','51\u201355','56\u201360','61+'],['JPA','1.6%','13.9%','21.0%','17.7%','16.0%','11.8%','7.7%','6.3%','4.1%'],[],['Age range'],['region','Under 25','26\u201330','31\u201335','36\u201340','41\u201345','46\u201350','51\u201355','56\u201360','61+'],['Global','1.1%','10.7%','19.3%','20.1%','16.3%','13.1%','8.9%','6.4%','4.1%'],[],['Country of qualification (page 5)'],['region','UK, IRL, US, CA, AUS, NZ','SA','EU','Other'],['Global','40.6%','12.3%','4.8%','42.4%'],['Asia','41.1%','12.8%','4.3%','41.8%'],['SE Asia','40.8%','12.5%','4.0%','42.8%'],['Cambodia','44.6%','12.8%','4.4%','38.2%'],['JPA','43.1%','16.3%','3.3%','37.3%'],[],['Curriculum experience (page 6)'],['region','IB','British','American'],['JPA','29.3%','44.7%','25.8%'],['Cambodia','34.9%','44.9%','27.2%'],['SE Asia','32.2%','44.1%','23.7%'],['Asia','32.4%','44.3%','23.6%'],['Global','32.0%','43.5%','24.1%'],[],['Marital status (page 8)'],['region','Global','Asia','SE Asia','Cambodia','JPA'],['Single','44.6%','44.2%','45.8%','49.3%','53.2%'],['Married','47.9%','48.3%','46.9%','42.8%','39.1%'],['Living with partner / Other','7.5%','7.5%','7.3%','7.9%','7.8%'],[],['Dependents (page 8)'],['region','Global','Asia','SE Asia','Cambodia','JPA'],['0 dependents','60.6%','60.9%','62.0%','64.9%','66.2%'],['1 dependent','18.9%','19.3%','18.9%','18.7%','18.1%'],['2 dependents','15.1%','14.9%','14.4%','11.6%','10.6%'],['3 dependents','4.2%','3.8%','3.5%','4.1%','5.1%'],['4+ dependents','1.2%','1.1%','1.1%','0.7%','0.0%'],[],['Applications vs vacancies (page 9)'],['Africa','Asia','Central America','Europe','Middle East','North America','Oceania','South America'],['-10.8%','4.6%','23.1%','-12.9%','2.8%','-6.5%','31.1%','25.7%'],[],['Candidate preferences (page 11)'],['Asia','Ability to save money each month','Health insurance provided','Reduced tuition fees for my children','Accommodation (or support) provided','Professional development provided'],['Essential','39%','51%','17%','42%','30%'],['Important','34%','28%','9%','27%','35%'],[],['Salaries box and whisker (page 13)'],['','Cambodia','','SE Asia','','Asia','','Global',''],['','new','exp','new','exp','new','exp','new','exp'],['Box 1 - hidden','17,400.00','21,100.00','24,750.00','30,000.00','29,700.00','37,477.00','27,600.00','35,280.00'],['Box 2 - lower','2,200.00','4,604.00','7,250.00','10,200.00','8,300.00','11,980.00','7,536.00','11,520.00'],['Box 3 - Upper','11,900.00','17,860.00','8,341.00','9,800.00','10,650.00','15,543.00','10,264.00','13,482.00'],[],[],['Whisker top','11,340.00','18,783.00','44,659.00','81,375.00','36,350.00','66,375.00','84,380.00','74,987.00'],['Whisker bottom','5,400.00','3,100.00','12,750.00','16,000.00','17,700.00','23,477.00','19,800.00','27,280.00'],[],['Flight allowance (page 15)'],['Flight allowance','Global','Asia','SE Asia','Cambodia'],['Yearly','40.84%','45.39%','36.63%','20.00%'],['Start and end of placement','32.77%','34.38%','44.55%','10.00%'],['Start of placement','9.32%','8.99%','3.96%','15.00%'],['End of placement','1.88%','2.70%','3.96%','5.00%'],['One off payment','2.83%','2.25%','3.47%','5.00%'],['None','12.36%','6.29%','7.43%','45.00%'],[],['relocation allowance (page 15)'],['','Global','Asia','SE Asia','Cambodia'],['Start and end of placement','27.54%','31.24%','27.72%','0.00%'],['Start of placement','44.61%','44.94%','40.10%','30.00%'],['End of placement','2.83%','3.15%','3.47%','5.00%'],['Not provided','25.03%','20.67%','28.71%','65.00%'],[],['Housing benefits (page 16)'],['region','Housing provided','Housing allowance','Allowance or housing provided','No housing benefit'],['Global','28.06%','21.68%','18.85%','31.41%'],['Asia','26.07%','30.79%','22.25%','20.90%'],['SE Asia','19.80%','35.15%','17.82%','27.23%'],['Cambodia','10.00%','10.00%','0.00%','80.00%'],[],['Health benefits (page 16)'],['hasPrivateHealthcareScheme','Global','Asia','SE Asia','Cambodia'],['Yes','79.37%','86.52%','89.60%','75.00%'],['No','20.63%','13.48%','10.40%','25.00%'],[],['Professional development budget (page 17)'],['hasPdBudget','Global','Asia','SE Asia','Cambodia'],['Yes','68.06%','69.66%','70.79%','55.00%'],['No','31.94%','30.34%','29.21%','45.00%'],[],['Tuition fee subsidy (page 17)'],['','Global','Asia','SE Asia','Cambodia'],['100% discount','53.15%','61.49%','62.38%','30.00%'],['Discounted','34.56%','27.93%','30.20%','65.00%'],['No discount','12.29%','10.59%','7.43%','5.00%']].map(r=>r.join('\t')).join('\n');
+
+function kind(t){t=t.toLowerCase();
+  if(/salar|whisker/.test(t))return'salary';
+  if(/flight/.test(t))return'flight';
+  if(/relocat/.test(t))return'reloc';
+  if(/housing/.test(t))return'housing';
+  if(/health|medical/.test(t))return'medical';
+  if(/professional|\bpd\b/.test(t))return'pd';
+  if(/tuition/.test(t))return'tuition';
+  if(/vacanc/.test(t))return'appvac';
+  if(/candidate/.test(t))return'candpref';
+  if(t.includes('country of qual'))return/\b5\b|compar/.test(t)?'cmp':'country';
+  if(t.includes('international exp'))return/6/.test(t)?'intl6':'intl3';
+  if(t.includes('marital'))return/\b8\b|compar/.test(t)?'marital8':'marital';
+  if(t.includes('dependent'))return/\b8\b|compar/.test(t)?'dep8':'dep';
+  if(t.includes('curriculum'))return/\b6\b|compar/.test(t)?'curric6':'curric';
+  if(/\bage\b/.test(t))return/\b6\b|global/.test(t)?'age6':'age';
+  return null}
+function wrapName(n){
+  const t=n.trim().split(/\s+/);
+  if(n.length<=13||t.length<2)return[n.trim()];
+  let b=null;
+  for(let i=1;i<t.length;i++){const a=t.slice(0,i).join(' '),c=t.slice(i).join(' '),m=Math.max(a.length,c.length);if(!b||m<b.m)b={m,l:[a,c]}}
+  return b.l}
+function parse(txt){
+  const secs=[];let cur=null;
+  txt.split(/\r?\n/).forEach(l=>{
+    const c=l.split('\t').map(s=>s.trim()),ne=c.filter(Boolean);
+    if(!ne.length)return;
+    if(ne.length===1&&c[0]&&kind(c[0])){cur={k:kind(c[0]),rows:[],n:secs.filter(x=>x.k===kind(c[0])).length};secs.push(cur);return}
+    if(cur)cur.rows.push(c)});
+  const charts=[];
+  secs.forEach(s=>{
+    if(T[s.k].box){
+      const lab=c=>{const t=(c[0]||'').toLowerCase();
+        if(/whisker/.test(t))return/top|upper|max/.test(t)?'wt':/bottom|lower|min/.test(t)?'wb':'';
+        return/hidden|box\s*1/.test(t)?'hid':/lower|box\s*2/.test(t)?'lo':/upper|box\s*3/.test(t)?'up':''};
+      const di=s.rows.findIndex(c=>lab(c)),head=di<0?s.rows:s.rows.slice(0,di),body=di<0?[]:s.rows.slice(di),nc=Math.max(0,...s.rows.map(c=>c.length));
+      const regs=[];let reg='';
+      for(let j=1;j<nc;j++){
+        let t=head.map(c=>c[j]||'').filter(Boolean).join(' ').trim();
+        const m=t.match(/(?:^|\s)(new|exp)$/i),ty=m?m[1].toLowerCase():'';
+        if(m)t=t.slice(0,m.index).trim();
+        if(t)reg=t;
+        if(!ty)continue;
+        const name=reg||'Region',v={};body.forEach(c=>{const k=lab(c);if(k)v[k]=c[j]||''});
+        let r=regs.find(x=>x.name===name);if(!r)regs.push(r={name,new:null,exp:null});r[ty]=v}
+      charts.push({k:s.k,region:'',box:{regs}});return}
+    if(s.k==='cmp'||s.k==='curric6'||s.k==='housing'){const head=(s.rows[0]||[]).slice(1);charts.push({k:s.k,region:'',cmp:{names:head.filter(Boolean),rows:s.rows.slice(1).map(c=>({region:c[0],vals:head.map((h,i)=>h?c[i+1]||'':null).filter(v=>v!==null)}))}});return}
+    if(T[s.k].stack){
+      const head=(s.rows[0]||[]).slice(1),cats=s.rows.slice(1).filter(c=>c[0]);
+      charts.push({k:s.k,region:'',cmp:{names:cats.map(c=>c[0]),rows:head.map((h,i)=>h?{region:h,vals:cats.map(c=>c[i+1]||'')}:null).filter(Boolean)}});return}
+    if(T[s.k].cs){
+      const bl=[];
+      s.rows.forEach(c=>{const v=c.slice(1).filter(x=>x!=='');
+        if(v.length&&v.every(x=>!isNum(x)))bl.push({region:c[0]||'',names:c.slice(1),rows:[]});
+        else if(bl.length&&c[0])bl[bl.length-1].rows.push({label:c[0],v:c.slice(1)})});
+      bl.forEach(b=>{const cells=b.names.map((nm,i)=>nm?{name:nm,raws:b.rows.map(r=>r.v[i]||'')}:null).filter(Boolean);
+        cells.ser=b.rows.map(r=>r.label);charts.push({k:s.k,region:b.region,cells})});return}
+    if(T[s.k].div){
+      const head=s.rows[0]||[];
+      s.rows.slice(1).forEach(c=>{const off=isNum(c[0])?0:1;
+        charts.push({k:s.k,region:off?c[0]:'',cells:head.slice(off).map((h,i)=>h?{name:h,raw:c[i+off]||''}:null).filter(Boolean)})});return}
+    if(['country','age','age6'].includes(s.k)){
+      const head=s.rows[0]||[];
+      s.rows.slice(1).forEach(c=>charts.push({k:s.k==='age'&&(/global/i.test(c[0])||s.n>0)?'age6':s.k,region:c[0],cells:head.slice(1).map((h,i)=>h?{name:h,raw:c[i+1]||''}:null).filter(Boolean)}));
+    }else{
+      let rows=s.rows,region='';
+      if(rows[0]&&!isNum(rows[0][1])){region=rows[0][1]||'';rows=rows.slice(1)}
+      charts.push({k:s.k,region,cells:rows.map(c=>({name:c[0],raw:c[1]||''}))});
+    }});
+  return charts}
+function colour(cfg,name,i){
+  if(Array.isArray(cfg.cols))return cfg.cols[i%cfg.cols.length];
+  const n=name.toLowerCase(),k=Object.keys(cfg.cols).find(k=>n.startsWith(k.split(' ')[0]));
+  return k?cfg.cols[k]:PAL[i%PAL.length]}
+function layout(cells,cfg,leader){if(cfg.cs)return layoutCS(cells,cfg);if(cfg.div)return layoutDiv(cells,cfg);if(cfg.age)return layoutAge(cells,cfg);if(cfg.bar)return layoutBar(cells,cfg);
+  const {W,H,r}=cfg,cx=cfg.cx??W/2,cy=cfg.cy??H/2,g=cfg.g,top=cfg.title?41:12,bot=H-5,warns=[];
+  cells.forEach(c=>{c.v=parseFloat(c.raw.replace('%',''));if(isNaN(c.v)){warns.push('Could not read a number for "'+c.name+'", so it was skipped.');c.v=0}});
+  const tot=cells.reduce((a,c)=>a+Math.max(c.v,0),0);
+  if(!tot)return{sl:[],warns:warns.concat('No values to chart.')};
+  if(Math.abs(tot-100)>.5)warns.push('Values add up to '+f(tot)+'%. Slices are scaled to fill the pie.');
+  let a=0;const sl=[];
+  cells.forEach((c,i)=>{
+    if(!(c.v>0))return;
+    const sw=c.v/tot*360,m=rad(a+sw/2);
+    const s={a0:a,a1:a+Math.min(sw,359.99),dir:{x:Math.sin(m),y:-Math.cos(m)},lines:[...wrapName(c.name),c.raw.includes('%')?c.raw:c.raw+'%'],col:colour(cfg,c.name,i),name:c.name};
+    a+=sw;s.side=s.dir.x>=0?1:-1;
+    s.P={x:cx+r*s.dir.x,y:cy+r*s.dir.y};s.y=cy+(r+g)*s.dir.y;s.w=Math.max(...s.lines.map(tw));
+    sl.push(s)});
+  [1,-1].forEach(side=>{
+    const gr=sl.filter(s=>s.side===side).sort((p,q)=>p.y-q.y),h=s=>(s.lines.length-1)*LH;
+    gr.forEach(s=>s.y=Math.max(top,Math.min(s.y,bot-h(s))));
+    for(let k=1;k<gr.length;k++)gr[k].y=Math.max(gr[k].y,gr[k-1].y+h(gr[k-1])+13.3);
+    for(let k=gr.length-1;k>=0;k--){gr[k].y=Math.min(gr[k].y,bot-h(gr[k]));if(k>0)gr[k-1].y=Math.min(gr[k-1].y,gr[k].y-h(gr[k-1])-13.3)}});
+  sl.forEach(s=>{
+    const dy=s.y-cy,rr=r+g;
+    const ex=Math.max(Math.sqrt(Math.max(rr*rr-dy*dy,0)),Math.abs(s.P.x-cx)+4);
+    s.E={x:cx+s.side*ex,y:s.y};
+    const run=cfg.total?Math.max(6,cfg.total-Math.hypot(s.E.x-s.P.x,s.E.y-s.P.y)):leader;
+    s.end=s.E.x+s.side*run;
+    s.left=s.side>0?s.end+2.3:s.end-2.3-s.w;
+    if(s.left<0||s.left+s.w>W)warns.push('The "'+s.name+'" label may run outside the frame. Check it in Figma.')});
+  return{sl,warns,cx,cy}}
+function build(L,cfg,title,preview){if(cfg.cs)return buildCS(L,cfg,preview);if(cfg.div)return buildDiv(L,cfg,preview);if(cfg.age)return buildAge(L,cfg,preview);if(cfg.bar)return buildBar(L,cfg,preview);
+  const {sl,cx,cy}=L,r=cfg.r;
+  const pt=a=>({x:cx+r*Math.sin(rad(a)),y:cy-r*Math.cos(rad(a))});
+  const slices=sl.map(s=>{const A=pt(s.a0),B=pt(s.a1);
+    return `<path d="M${f(cx)} ${f(cy)}L${f(A.x)} ${f(A.y)}A${r} ${r} 0 ${s.a1-s.a0>180?1:0} 1 ${f(B.x)} ${f(B.y)}Z" fill="${s.col}" stroke="#FFFFFF" stroke-width="1.70362" stroke-miterlimit="10" stroke-linejoin="round"/>`});
+  const leaders=sl.map(s=>`<path d="M${f(s.P.x)} ${f(s.P.y)}L${f(s.E.x)} ${f(s.E.y)}L${f(s.end)} ${f(s.E.y)}" fill="none" stroke="#A6A6A6" stroke-width="1" stroke-miterlimit="10" stroke-linejoin="round"/>`);
+  const fam=preview?`'GT Eesti Pro Display', sans-serif`:'GT Eesti Pro Display';
+  const texts=sl.map(s=>{
+    const at=`font-family="${fam}" font-weight="300" fill="#00264B" font-size="${FS}"`;
+    if(preview){const x=f(s.left+s.w/2);return `<text ${at} text-anchor="middle">`+s.lines.map((l,k)=>`<tspan x="${x}" y="${f(s.y+k*LH)}">${esc(l)}</tspan>`).join('')+`</text>`}
+    return `<text x="${f(s.left)}" y="${f(s.y)}" ${at} xml:space="preserve">${s.lines.map(esc).join('&#x2028;')}</text>`});
+  const tt=cfg.ttl||title,tx=cfg.tx??cx-tw(tt)*15/13/2;
+  const ttl=cfg.title?[`<text x="${f(tx)}" y="24.78" font-family="${fam}" font-weight="400" fill="#00264B" font-size="15"${preview?'':' xml:space="preserve"'}>${esc(tt)}</text>`]:[];
+  return `<svg width="${cfg.W}" height="${cfg.H}" viewBox="0 0 ${cfg.W} ${cfg.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[...slices,...leaders,...texts,...ttl].join('\n')}\n</svg>\n`}
+const tb=s=>{const W={i:.22,l:.22,j:.22,t:.3,f:.3,r:.3,m:.82,w:.82,I:.26};return [...s].reduce((a,c)=>a+(W[c]??(/[scxyzkv]/.test(c)?.47:/[a-z]/.test(c)?.55:/[MW]/.test(c)?.88:/[A-Z]/.test(c)?.66:/\d/.test(c)?.56:c==='%'?.85:c===' '?.27:.28)),0)*FS*.96};
+const BX0=38.2309,BX1=191.943,BY0=200.212,BY1=13.856,BW=26.8037,BG=7.3573;
+function layoutBar(cells,cfg){
+  const warns=[],sl=[];
+  cells.forEach((c,i)=>{const v=parseFloat(c.raw.replace('%',''));if(isNaN(v)){warns.push('Could not read a number for "'+c.name+'", so it was skipped.');return}sl.push({name:c.name,v,col:cfg.cols[i%cfg.cols.length]})});
+  if(!sl.length)return{sl,warns:warns.concat('No values to chart.')};
+  const max=Math.max(10,Math.ceil(Math.max(...sl.map(b=>b.v))/10)*10);
+  const leg=sl.reduce((a,b)=>a+10+tb(b.name),0)+(sl.length-1)*8;
+  if(leg>cfg.W-8)warns.push('The legend is wider than the frame. Check it in Figma.');
+  if(sl.length*(BW+BG)-BG>BX1-BX0)warns.push('Too many bars to fit the plot area.');
+  return{sl,warns,max,leg}}
+function buildBar(L,cfg,preview){
+  const {sl,max,leg}=L,k=(BY0-BY1)/max,n=max/10,fam=preview?`'GT Eesti Pro Display', sans-serif`:'GT Eesti Pro Display';
+  const at=w=>`font-family="${fam}" font-weight="${w}" fill="#00264B" font-size="${FS}"`;
+  const minor=[],major=[],lab=[];
+  for(let i=0;i<=n;i++){const y=BY0-i*10*k;major.push(`M${BX0} ${f(y)}H${BX1}`);if(i<n)minor.push(`M${BX0} ${f(y-5*k)}H${BX1}`);
+    lab.push(`<text x="35" y="${f(y+2.98)}" ${at(350)} text-anchor="end">${i*10}%</text>`)}
+  const ln=(d,w,c)=>`<path d="${d.join('')}" stroke-width="${w}" stroke-miterlimit="10" stroke-linejoin="round" stroke="${c}"/>`;
+  const tot=sl.length*BW+(sl.length-1)*BG;let x=BX0+((BX1-BX0)-tot)/2;
+  const bars=sl.map(b=>{const t=f(BY0-b.v*k),p=`<path d="M${f(x)} ${t}H${f(x+BW)}V200.339H${f(x)}V${t}Z" fill="${b.col}"/>`;x+=BW+BG;return p});
+  let lx=(BX0+BX1)/2-leg/2;
+  const key=sl.map(b=>{const s=`<path d="M${f(lx+7)} 214H${f(lx)}V221H${f(lx+7)}V214Z" fill="${b.col}"/>\n<text x="${f(lx+9.2)}" y="221" ${at(400)}>${esc(b.name)}</text>`;lx+=10+tb(b.name)+8;return s});
+  return `<svg width="${cfg.W}" height="${cfg.H}" viewBox="0 0 ${cfg.W} ${cfg.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[ln(minor,.5,'#F2F2F2'),ln(major,1,'#D9D9D9'),...bars,...lab,...key].join('\n')}\n</svg>\n`}
+function layoutAge(cells,cfg){
+  const sl=[];
+  cells.forEach((c,i)=>{const v=parseFloat((c.raw||'').replace('%',''));if(v>0)sl.push({name:c.name,v,ix:i})});
+  if(!sl.length)return{sl,warns:['No values to chart.']};
+  const hi=sl.reduce((m,b,i)=>b.v>sl[m].v?i:m,0);
+  sl.forEach((b,i)=>b.col=i===hi?'#FF725E':cfg.pat?cfg.pat[b.ix%cfg.pat.length]:i%2?'#405C78':'#3FA9B3');
+  return{sl,warns:[],max:Math.max(10,Math.ceil(Math.max(...sl.map(b=>b.v))/10)*10)}}
+function buildAge(L,cfg,preview){
+  const {sl,max}=L,{AX0,AX1,AY0,AY1,bb,ts,yx,yo,xy,yt,xt,tt}=cfg.G,n=max/10,k=(AY0-AY1)/max,fam=preview?`'GT Eesti Pro Display', sans-serif`:'GT Eesti Pro Display';
+  const tx=(x,y,t,w,s,a,extra)=>`<text ${extra||`x="${f(x)}" y="${f(y)}"`} font-family="${fam}" font-weight="${w}" fill="#00264B" font-size="${s}" text-anchor="${a}">${esc(t)}</text>`;
+  const ln=(d,w,c)=>`<path d="${d.join('')}" stroke-width="${w}" stroke-miterlimit="10" stroke-linejoin="round" stroke="${c}"/>`;
+  const minor=[],major=[],lab=[];
+  for(let i=0;i<=n;i++){const y=AY0-i*10*k;
+    if(i>0)major.push(`M${AX0} ${f(y)}H${AX1}`);
+    if(i<n)for(let j=1;j<5;j++)minor.push(`M${AX0} ${f(y-j*2*k)}H${AX1}`);
+    lab.push(tx(yx,y+yo,i*10+'%',350,ts,'end'))}
+  const slot=(AX1-AX0)/sl.length,bw=slot*.313;
+  const bars=sl.map((b,i)=>{const x=AX0+slot*(i+.5)-bw/2,t=f(AY0-b.v*k);return `<path d="M${f(x)} ${t}H${f(x+bw)}V${bb}H${f(x)}V${t}Z" fill="${b.col}"/>`});
+  const xl=sl.map((b,i)=>tx(AX0+slot*(i+.5),xy,b.name,350,ts,'middle'));
+  const parts=[ln(minor,.5,'#F2F2F2'),ln(major,1,'#D9D9D9'),...bars,ln([`M${AX0} ${AY0}H${AX1}`],1,'#D9D9D9'),...lab,...xl,
+    tx(0,0,'Distribution (%)',400,13,'middle',`transform="translate(${yt[0]} ${yt[1]}) rotate(-90)"`),tx(xt[0],xt[1],'Age ranges',400,13,'middle'),tx(tt[0],tt[1],'Age Distribution',400,15,'middle')];
+  return `<svg width="${cfg.W}" height="${cfg.H}" viewBox="0 0 ${cfg.W} ${cfg.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${parts.join('\n')}\n</svg>\n`}
+const CP={X0:86.2404,X1:619.478,bx0:86.3677,bx1:619.397,Y0:53.2007,Y1:327.195};
+const CMP_SEL={};
+function cmpSvg(names,rows,cols){
+  const n=rows.length,slot=(CP.Y1-CP.Y0)/n,bh=slot*.4033,pw=CP.X1-CP.X0,bw=CP.bx1-CP.bx0;
+  const tx=(x,y,t,w,a)=>`<text x="${f(x)}" y="${f(y)}" font-family="GT Eesti Pro Display" font-weight="${w}" fill="#FFFFFF" font-size="${FS}" text-anchor="${a}">${esc(t)}</text>`;
+  const ln=(d,w,c)=>`<path d="${d.join('')}" stroke-width="${w}" stroke-miterlimit="10" stroke-linejoin="round" stroke="${c}"/>`;
+  const minor=[],major=[];
+  for(let p=5;p<=100;p+=5)(p%20?minor:major).push(`M${f(CP.X0+pw*p/100)} ${CP.Y0}V${CP.Y1}`);
+  const yc=r=>CP.Y1-slot*(r+.5);
+  const cum=rows.map(r=>{let a=0;return r.pc.map(p=>{const s=a;a+=p;return[s,a]})});
+  const bars=names.map((nm,ci)=>{
+    const d=rows.map((r,ri)=>{const [a,b]=cum[ri][ci],xa=CP.bx0+bw*a/100,xb=CP.bx0+bw*b/100,y=yc(ri);return b-a<.01?'':`M${f(xb)} ${f(y+bh/2)}H${f(xa)}V${f(y-bh/2)}H${f(xb)}V${f(y+bh/2)}Z`}).join('');
+    return `<path d="${d}" fill="${cols[ci%cols.length]}"/>`});
+  const ticks=[0,20,40,60,80,100].map(p=>tx(CP.X0+pw*p/100+3.1,344.36,p+'%',350,'middle'));
+  const regs=rows.map((r,ri)=>tx(77,yc(ri)+3.1,r.region,400,'end'));
+  const wd=names.map(nm=>12.3+tb(nm)),tot=wd.reduce((a,b)=>a+b,0)+17*(names.length-1);
+  let x=347.4-tot/2;
+  const key=names.map((nm,ci)=>{const s=`<path d="M${f(x+8)} 22H${f(x)}V30H${f(x+8)}V22Z" fill="${cols[ci%cols.length]}"/>\n`+tx(x+12.3,30,nm,400,'start');x+=wd[ci]+17;return s});
+  const axis=ln([`M${CP.X0} ${CP.Y1}L${CP.X0} ${CP.Y0}`],1,'#D9D9D9');
+  return `<svg width="654" height="360" viewBox="0 0 654 360" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[ln(minor,.2,'#F2F2F2'),ln(major,1,'#D9D9D9'),...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`}
+const CC={X0:39.4709,X1:559.683,Y0:289.363,Y1:47.9951,bb:289.517};
+function colSvg(names,rows,cols){
+  const n=rows.length,ns=names.length,slot=(CC.X1-CC.X0)/n,bw=slot*.1749,gp=slot*.0488,cw=ns*bw+(ns-1)*gp;
+  const max=Math.max(10,Math.ceil(Math.max(...rows.flatMap(r=>r.v))/10)*10),k=(CC.Y0-CC.Y1)/max,m=max/10;
+  const tx=(x,y,t,w,a)=>`<text x="${f(x)}" y="${f(y)}" font-family="GT Eesti Pro Display" font-weight="${w}" fill="#FFFFFF" font-size="${FS}" text-anchor="${a}">${esc(t)}</text>`;
+  const ln=(d,w,c)=>`<path d="${d.join('')}" stroke-width="${w}" stroke-miterlimit="10" stroke-linejoin="round" stroke="${c}"/>`;
+  const minor=[],major=[],lab=[];
+  for(let i=0;i<=m;i++){const y=CC.Y0-i*10*k;if(i>0)major.push(`M${CC.X0} ${f(y)}H${CC.X1}`);if(i<m)minor.push(`M${CC.X0} ${f(y-5*k)}H${CC.X1}`);lab.push(tx(35,y+2.85,i*10+'%',350,'end'))}
+  const bars=names.map((nm,si)=>`<path d="${rows.map((r,ri)=>{const x=CC.X0+slot*(ri+.5)-cw/2+si*(bw+gp),t=f(CC.Y0-r.v[si]*k);return `M${f(x)} ${t}H${f(x+bw)}V${CC.bb}H${f(x)}V${t}Z`}).join('')}" fill="${cols[si%cols.length]}"/>`);
+  const cats=rows.map((r,ri)=>tx(CC.X0+slot*(ri+.5),307.69,r.region,400,'middle'));
+  const wd=names.map(nm=>13+tb(nm)),tot=wd.reduce((a,b)=>a+b,0)+21.5*(ns-1);
+  let x=298.6-tot/2;
+  const key=names.map((nm,si)=>{const s=`<path d="M${f(x+8.516)} 13.14H${f(x)}V23.42H${f(x+8.516)}V13.14Z" fill="${cols[si%cols.length]}"/>\n`+tx(x+13,23,nm,400,'start');x+=wd[si]+21.5;return s});
+  return `<svg width="574" height="321" viewBox="0 0 574 321" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[ln(minor,.2,'#F2F2F2'),ln(major,1,'#D9D9D9'),...bars,ln([`M${CC.X0} ${CC.Y0}H${CC.X1}`],1,'#D9D9D9'),...lab,...cats,...key].join('\n')}\n</svg>\n`}
+/* Candidate preferences (page 11): stacked columns (one series per row of the sheet), white text for the dark slide.
+   Axis is 0% to 90% as in Figma and only grows (in 10% steps) if a stack goes beyond it. */
+function wrapW(n,max){
+  const L=[];let cur='';
+  n.trim().split(/\s+/).forEach(w=>{const t=cur?cur+' '+w:w;if(cur&&tb(t)>max){L.push(cur);cur=w}else cur=t});
+  if(cur)L.push(cur);return L}
+function layoutCS(cells,cfg){
+  const G=cfg.G,warns=[],ser=cells.ser||[],num=r=>parseFloat(String(r).replace('%',''));
+  const sl=cells.map(c=>({name:c.name,vals:c.raws.map((r,i)=>{const v=num(r);
+    if(r!==''&&isNaN(v))warns.push('Could not read a number for "'+c.name+'" ('+(ser[i]||'row '+(i+1))+'), so it was skipped.');
+    if(v<0)warns.push('Negative values are not drawn in a stacked chart ("'+c.name+'").');
+    return v>0?v:0})}));
+  const tot=sl.map(b=>b.vals.reduce((a,v)=>a+v,0));
+  if(!tot.some(t=>t>0))return{sl:[],warns:warns.concat('No values to chart.')};
+  const lo=G.lo,hi=Math.max(G.hi,Math.ceil(Math.max(...tot)/10)*10),slot=(G.x1-G.x0)/sl.length;
+  if(hi>G.hi)warns.push('A stack goes beyond '+G.hi+'%, so the axis was extended to '+hi+'%.');
+  sl.forEach(b=>{b.lines=wrapW(b.name,G.wrap);if(Math.max(...b.lines.map(tb))>slot-6)warns.push('The "'+b.name+'" label may overlap its neighbours.')});
+  return{sl,ser,warns,lo,hi}}
+function buildCS(L,cfg,preview){
+  const {sl,ser,lo,hi}=L,G=cfg.G,cols=cfg.cols,k=(G.yb-G.yt)/(hi-lo),y=v=>G.yb-(v-lo)*k,slot=(G.x1-G.x0)/sl.length,bw=slot*G.bwr;
+  const minor=[],major=[],lab=[];
+  for(let v=lo;v<=hi;v+=10){
+    if(v<hi)[2,4,6,8].forEach(d=>minor.push(`M${G.x0} ${f(y(v+d))}H${G.x1}`));
+    if(v>lo)major.push(`M${G.x0} ${f(y(v))}H${G.x1}`);
+    lab.push(svgTx(G.lx,y(v)+G.ly,v+'%',300,'end','#F4F8FB'))}
+  const cum=sl.map(()=>0),bars=ser.map((nm,si)=>{
+    const d=sl.map((b,i)=>{const v=b.vals[si]||0;if(!v)return'';
+      const x=G.x0+slot*(i+.5)-bw/2,y0=y(cum[i]),y1=y(cum[i]+v);cum[i]+=v;
+      return `M${f(x)} ${f(y1)}H${f(x+bw)}V${f(y0)}H${f(x)}V${f(y1)}Z`}).join('');
+    return d?`<path d="${d}" fill="${cols[si%cols.length]}"/>`:''}).filter(Boolean);
+  const cats=sl.map((b,i)=>{
+    const cx=sl.length===G.lc.length?G.lc[i]:G.x0+slot*(i+.5),at=`font-family="GT Eesti Pro Display" font-weight="400" fill="#F5F8FA" font-size="${FS}"`;
+    if(preview)return `<text ${at} text-anchor="middle">`+b.lines.map((l,j)=>`<tspan x="${f(cx)}" y="${f(G.cy+j*G.lh)}">${esc(l)}</tspan>`).join('')+`</text>`;
+    return `<text x="${f(cx)}" y="${f(G.cy)}" ${at} text-anchor="middle" xml:space="preserve">${b.lines.map(esc).join('&#x2028;')}</text>`});
+  /* legend: Figma positions for Essential / Important, otherwise centred on the frame */
+  const kk=ser.map(n=>n.trim().toLowerCase());
+  let pos;
+  if(kk.every(n=>Object.hasOwn(G.leg,n))&&new Set(kk).size===kk.length)pos=kk.map(n=>G.leg[n]);
+  else{const wd=ser.map(n=>G.legO+tb(n)),tot=wd.reduce((a,b)=>a+b,0)+G.legG*(ser.length-1);let x=G.legC-tot/2;pos=ser.map((n,i)=>{const p=[x,x+G.legO];x+=wd[i]+G.legG;return p})}
+  const key=ser.map((nm,i)=>{const [sx,tx]=pos[i];return `<path d="M${f(sx+G.sqW)} ${G.sqY[0]}H${f(sx)}V${G.sqY[1]}H${f(sx+G.sqW)}V${G.sqY[0]}Z" fill="${cols[i%cols.length]}"/>\n`+svgTx(tx,G.legY,nm,400,'start','#FFFFFF')});
+  const svg=`<svg width="${cfg.W}" height="${cfg.H}" viewBox="0 0 ${cfg.W} ${cfg.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[svgLn(minor,.2,'#F2F2F2'),svgLn(major,1,'#D9D9D9'),...bars,svgLn([`M${G.x0} ${f(y(lo)+G.axo)}H${G.x1}`],1,'#D9D9D9'),...lab,...cats,...key].join('\n')}\n</svg>\n`;
+  return preview?svg.replace(/font-family="GT Eesti Pro Display"/g,`font-family="'GT Eesti Pro Display', sans-serif"`):svg}
+/* Applications vs vacancies (page 9): columns above and below zero, white text for the dark slide.
+   Axis is -30% to 50% as in Figma and only grows (in 10% steps) if the data goes beyond it. */
+function layoutDiv(cells,cfg){
+  const G=cfg.G,warns=[],sl=cells.map(c=>{const v=parseFloat((c.raw||'').replace('%',''));
+    if(c.raw&&isNaN(v))warns.push('Could not read a number for "'+c.name+'", so it has no bar.');return{name:c.name,v}});
+  const vs=sl.map(b=>b.v).filter(v=>!isNaN(v));
+  if(!vs.length)return{sl:[],warns:warns.concat('No values to chart.')};
+  const lo=Math.min(G.lo,Math.floor(Math.min(...vs)/10)*10),hi=Math.max(G.hi,Math.ceil(Math.max(...vs)/10)*10),slot=(G.x1-G.x0)/sl.length;
+  if(lo<G.lo||hi>G.hi)warns.push('Values go beyond '+G.lo+'% to '+G.hi+'%, so the axis was extended to '+lo+'% to '+hi+'%.');
+  sl.forEach(b=>{if(tb(b.name)>slot-4)warns.push('The "'+b.name+'" label may overlap its neighbours.')});
+  return{sl,warns,lo,hi}}
+function buildDiv(L,cfg,preview){
+  const {sl,lo,hi}=L,G=cfg.G,k=(G.yb-G.yt)/(hi-lo),y=v=>G.yt+(hi-v)*k,z=y(0),slot=(G.x1-G.x0)/sl.length,bw=slot*.313;
+  const minor=[],major=[],lab=[];
+  for(let v=lo;v<=hi;v+=10){
+    if(v<hi)minor.push(`M${G.x0} ${f(y(v+5))}H${G.x1}`);
+    if(v!==0)major.push(`M${G.x0} ${f(y(v))}H${G.x1}`);
+    lab.push(svgTx(G.lx,y(v)+G.ly,v+'%',350,'end','#FFFFFF'))}
+  const bars=sl.map((b,i)=>{if(!b.v)return'';const x=G.x0+slot*(i+.5)-bw/2,t=f(y(b.v));
+    return `<path d="M${f(x+bw)} ${f(z)}H${f(x)}V${t}H${f(x+bw)}V${f(z)}Z" fill="${b.v>0?'#FF725E':'#7F93A5'}"/>`}).filter(Boolean);
+  const cats=sl.map((b,i)=>svgTx(G.x0+slot*(i+.5),G.cy,b.name,400,'middle','#FFFFFF'));
+  const svg=`<svg width="${cfg.W}" height="${cfg.H}" viewBox="0 0 ${cfg.W} ${cfg.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[svgLn(minor,.2,'#F2F2F2'),svgLn(major,1,'#D9D9D9'),...bars,svgLn([`M${G.x0} ${f(z+G.axo)}H${G.x1}`],2,'#D9D9D9'),...lab,...cats].join('\n')}\n</svg>\n`;
+  return preview?svg.replace(/font-family="GT Eesti Pro Display"/g,`font-family="'GT Eesti Pro Display', sans-serif"`):svg}
+/* Page 8 stacked comparison bars: light background, geometry measured from each Figma export (639 x 240).
+   One builder, driven by a geometry object per chart (SG). */
+const svgTx=(x,y,t,w,a,fill='#00264B')=>`<text x="${f(x)}" y="${f(y)}" font-family="GT Eesti Pro Display" font-weight="${w}" fill="${fill}" font-size="${FS}" text-anchor="${a}">${esc(t)}</text>`;
+const svgLn=(d,w,c)=>`<path d="${d.join('')}" stroke-width="${w}" stroke-miterlimit="10" stroke-linejoin="round" stroke="${c}"/>`;
+const SG={
+ marital8:{W:639,H:240,bx0:69.5613,bx1:609.54,Y0:37.749,Y1:215.035,bhr:.4014,axis:'M69.4107 215.036L69.4108 37.7492',
+  minor:[96.5487,123.349,150.451,204.658,231.458,258.563,312.466,339.57,366.672,420.575,447.68,474.48,528.687,555.487,582.589],
+  major:[177.556,285.665,393.473,501.582,609.64],
+  tick:[73.29,181.22,289.44,397.1,505,613.4],tickY:229.98,labX:64.03,labDy:3.85,
+  sqW:7.033,sqY:[14.7339,21.7339],legY:22,legC:339.5,legO:11,legG:13,
+  leg:{'single':[192,203.15],'married':[250.275,260.15],'living with partner / other':[320.607,333.2]}},
+ dep8:{W:639,H:240,bx0:66.2794,bx1:606.204,Y0:39.957,Y1:213.059,bhr:.3985,axis:'M66.4067 213.059L66.4068 39.9571',
+  minor:[93.4056,120.374,147.345,201.281,228.252,255.221,309.16,336.383,363.351,417.29,444.261,471.23,525.169,552.137,579.36],
+  major:[174.313,282.189,390.322,498.198,606.282],
+  tick:[71.38,179.75,287.97,395.6,503.53,612.26],tickY:226.395,labX:60,labDy:3.52,
+  sqW:8.078,sqY:[19,27],legY:27,legC:334.4,legO:11.2,legG:12,
+  leg:{'0 dependents':[91.8544,103.13],'1 dependent':[190.806,202.24],'2 dependents':[279.66,291.25],'3 dependents':[379.621,390.37],'4+ dependents':[481.602,492.5]}}
+};
+/* [square x, text x] per legend item: Figma positions when the names are the standard ones, otherwise centred under the plot */
+function stackLegend(G,names){
+  const k=names.map(n=>n.trim().toLowerCase());
+  if(k.every(n=>Object.hasOwn(G.leg,n))&&new Set(k).size===k.length)return k.map(n=>G.leg[n]);
+  const wd=names.map(n=>G.legO+tb(n)*1.07),tot=wd.reduce((a,b)=>a+b,0)+G.legG*(names.length-1);
+  let x=G.legC-tot/2;return names.map((n,i)=>{const p=[x,x+G.legO];x+=wd[i]+G.legG;return p})}
+const stackBuilder=G=>function(names,rows,cols){
+  const n=rows.length,slot=(G.Y1-G.Y0)/n,bh=slot*G.bhr,bw=G.bx1-G.bx0,yc=r=>G.Y1-slot*(r+.5);
+  const cum=rows.map(r=>{let a=0;return r.pc.map(p=>{const s=a;a+=p;return[s,a]})});
+  const bars=names.map((nm,ci)=>{
+    const d=rows.map((r,ri)=>{const [a,b]=cum[ri][ci],xa=G.bx0+bw*a/100,xb=G.bx0+bw*b/100,y=yc(ri);return b-a<.01?'':`M${f(xb)} ${f(y+bh/2)}H${f(xa)}V${f(y-bh/2)}H${f(xb)}V${f(y+bh/2)}Z`}).join('');
+    return `<path d="${d}" fill="${cols[ci%cols.length]}"/>`});
+  const grid=[svgLn(G.minor.map(x=>`M${x} ${G.Y0}V${G.Y1}`),.5,'#F2F2F2'),svgLn(G.major.map(x=>`M${x} ${G.Y0}V${G.Y1}`),1,'#D9D9D9')];
+  const axis=svgLn([G.axis],1,'#D9D9D9');
+  const ticks=[0,20,40,60,80,100].map((p,i)=>svgTx(G.tick[i],G.tickY,p+'%',350,'middle'));
+  const regs=rows.map((r,ri)=>svgTx(G.labX,yc(ri)+G.labDy,r.region,400,'end'));
+  const pos=stackLegend(G,names);
+  const key=names.map((nm,ci)=>{const [sx,tx]=pos[ci];return `<path d="M${f(sx+G.sqW)} ${G.sqY[0]}H${f(sx)}V${G.sqY[1]}H${f(sx+G.sqW)}V${G.sqY[0]}Z" fill="${cols[ci%cols.length]}"/>\n`+svgTx(tx,G.legY,nm,400,'start')});
+  return `<svg width="${G.W}" height="${G.H}" viewBox="0 0 ${G.W} ${G.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[...grid,...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`}
+/* Salaries box and whisker (page 13): one box per region and series (new, exp), geometry measured from the Figma export (756 x 245).
+   Sheet rows: hidden = bottom of the box, lower and upper = the two halves of the box, whisker top and bottom = distance beyond the box.
+   Axis is $0 to $160,000 as in Figma and only grows (in $20,000 steps) if a whisker goes beyond it. */
+const SB={W:756,H:245,X0:69.2021,X1:743.368,Y0:203.848,Y1:7.58264,max:160000,step:20000,bwr:.2002,cap:1.77,
+ cols:{new:'#99D1D7',exp:'#3FA9B3'},rows:[203.848,218.277,232.706],lx:63.9,lb:[208,12],ny:219.897,ry:234.326,nx:2.28,ex:1.66,rx:2.76};
+const money=v=>'$'+String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const boxHi=(regs,G)=>Math.max(G.max,Math.ceil(Math.max(0,...regs.flatMap(r=>[r.new,r.exp]).filter(Boolean).map(b=>b.top+b.wt))/G.step)*G.step);
+function boxSvg(regs,G){
+  const n=regs.length,slot=(G.X1-G.X0)/n,bw=slot*G.bwr,hi=boxHi(regs,G),m=hi/G.step,k=(G.Y0-G.Y1)/hi,y=v=>G.Y0-v*k;
+  const minor=[],major=[],lab=[];
+  for(let i=0;i<=m;i++){
+    if(i>0)major.push(`M${G.X0} ${f(y(i*G.step))}H${G.X1}`);
+    if(i<m)[1,2,3].forEach(j=>minor.push(`M${G.X0} ${f(y((i+j/4)*G.step))}H${G.X1}`));
+    lab.push(svgTx(G.lx,G.lb[0]-(G.lb[0]-G.lb[1])*i/m,money(i*G.step),350,'end'))}
+  const cx=(ri,ti)=>G.X0+slot*(ri+(ti?.75:.25));
+  const box=(ty,ti,upper)=>{const d=regs.map((r,ri)=>{const b=r[ty];if(!b)return'';
+      const a=upper?b.hid+b.lo:b.hid,z=upper?b.top:b.hid+b.lo,x0=cx(ri,ti)-bw/2,x1=x0+bw;
+      return `M${f(x0)} ${f(y(z))}H${f(x1)}V${f(y(a))}H${f(x0)}V${f(y(z))}Z`}).join('');
+    return d?`<path d="${d}" fill="${G.cols[ty]}" stroke-width="0.506122" stroke-miterlimit="10" stroke-linejoin="round" stroke="#00264B"/>`:''};
+  const wk=[];
+  regs.forEach((r,ri)=>['new','exp'].forEach((ty,ti)=>{const b=r[ty];if(!b)return;const c=cx(ri,ti),x=f(c),cap=yy=>`M${x} ${f(yy)}H${f(c-G.cap)}M${x} ${f(yy)}H${f(c+G.cap)}`;
+    if(b.wb>0)wk.push(`M${x} ${f(y(b.hid))}V${f(y(b.hid-b.wb))}`+cap(y(b.hid-b.wb)));
+    if(b.wt>0)wk.push(`M${x} ${f(y(b.top))}V${f(y(b.top+b.wt))}`+cap(y(b.top+b.wt)))}));
+  const xl=[],rl=[];
+  regs.forEach((r,ri)=>{xl.push(svgTx(cx(ri,0)+G.nx,G.ny,'new',400,'middle'),svgTx(cx(ri,1)+G.ex,G.ny,'exp',400,'middle'));
+    rl.push(svgTx(G.X0+slot*(ri+.5)+G.rx,G.ry,r.name,400,'middle'))});
+  const div=(a,b)=>svgLn(Array.from({length:n+1},(_,i)=>`M${f(G.X0+slot*i)} ${a}V${b}`),1,'#D9D9D9');
+  const parts=[svgLn(minor,.5,'#F2F2F2'),svgLn(major,1,'#D9D9D9'),box('new',0,0),box('exp',1,0),box('new',0,1),box('exp',1,1),
+    wk.length?svgLn(wk,.843538,'#00264B'):'',svgLn([`M${G.X0} ${G.Y0}H${G.X1}`],.506122,'#D9D9D9'),div(G.rows[0],G.rows[1]),div(G.rows[1],G.rows[2]),...lab,...xl,...rl].filter(Boolean);
+  return `<svg width="${G.W}" height="${G.H}" viewBox="0 0 ${G.W} ${G.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${parts.join('\n')}\n</svg>\n`}
+function boxCard(ch,out){
+  const cfg=T[ch.k],SEL=CMP_SEL[ch.k]||(CMP_SEL[ch.k]={});
+  const val=(v,k)=>{const t=String(v[k]??'').trim();return t===''?NaN:parseFloat(t.replace(/[$,\s]/g,''))};
+  const data=ch.box.regs.map(r=>{const w=[],mk=ty=>{const v=r[ty];if(!v)return null;
+      const hid=val(v,'hid'),lo=val(v,'lo'),up=val(v,'up'),wt=val(v,'wt'),wb=val(v,'wb');
+      if([hid,lo,up].some(q=>isNaN(q)||q<0)){w.push(r.name+' '+ty+': the box values are missing or not valid, so no box is drawn.');return null}
+      if(wb>hid)w.push(r.name+' '+ty+': the bottom whisker goes below $0, so it stops at $0.');
+      return{hid,lo,up,top:hid+lo+up,wt:wt>0?wt:0,wb:wb>0?Math.min(wb,hid):0}};
+    return{name:r.name,w,new:mk('new'),exp:mk('exp')}}).filter(r=>r.new||r.exp);
+  if(!data.length){out.insertAdjacentHTML('beforeend','<div class="panel card warn">'+esc(cfg.name)+': no rows with values.</div>');return}
+  const name=($('fname').value||'{chart}').replace('{chart}',cfg.name).replace('{region}','').replace(/[^\w ()+&,.-]/g,'').replace(/\s+/g,' ').replace(/[\s-]+$/,'')+'.svg';
+  const job={name,svg:''};jobs.push(job);
+  const card=document.createElement('section');card.className='panel card';
+  card.innerHTML=`<header><h3>${esc(cfg.name)}<small>${cfg.W} x ${cfg.H}</small></h3><button class="pri">Download SVG</button><button>Copy SVG</button></header><div class="prev" style="max-width:${cfg.W*2+18}px;margin:auto"></div><p class="note">Comparison regions to include</p><div class="regions" role="group" aria-label="Comparison regions"></div><p class="note">Whisker top and bottom are read as the distance beyond the box, not as the end value.</p><p class="note warn"></p>`;
+  const [b1,b2]=card.querySelectorAll('button'),prev=card.querySelector('.prev'),box=card.querySelector('.regions'),msg=card.querySelector('p.warn');
+  const draw=()=>{const sel=data.filter(r=>SEL[r.name]!==false),G=SB,hi=boxHi(sel,G),sw=(G.X1-G.X0)/sel.length,w=sel.flatMap(r=>r.w);
+    if(hi>G.max)w.push('A whisker goes beyond '+money(G.max)+', so the axis was extended to '+money(hi)+'.');
+    sel.forEach(r=>{if(tb(r.name)>sw-8)w.push('The "'+r.name+'" label may run outside its column.')});
+    job.svg=boxSvg(sel,G);prev.innerHTML=job.svg.replace(/font-family="GT Eesti Pro Display"/g,`font-family="'GT Eesti Pro Display', sans-serif"`);msg.textContent=w.join(' ')};
+  data.forEach(r=>{const l=document.createElement('label'),i=document.createElement('input');i.type='checkbox';i.checked=SEL[r.name]!==false;
+    i.onchange=()=>{SEL[r.name]=i.checked;if(!data.some(d=>SEL[d.name]!==false)){SEL[r.name]=true;i.checked=true;return}draw()};
+    l.append(i,' '+r.name);box.appendChild(l)});
+  b1.onclick=()=>dl(job.name,job.svg);
+  b2.onclick=async()=>{try{await navigator.clipboard.writeText(job.svg);b2.textContent='Copied'}catch(e){b2.textContent='Copy blocked, use Download'}setTimeout(()=>b2.textContent='Copy SVG',1800)};
+  draw();out.appendChild(card)}
+/* Page 15 allowance charts: 100% stacked bars on the dark slide, legend at the bottom (638 x 225 plus a left margin, pad, so long region names such as Cambodia stay inside the frame), geometry measured from each Figma export.
+   Grid (gx0, gx1) and bars (bx0, bx1) differ slightly in Figma, so both are kept. leg: [square x, text x] per legend item when the names are the standard ones,
+   otherwise the legend is centred under the plot. One builder, driven by a geometry object per chart (SH). */
+const SH={
+ flight:{pad:10,W:648,H:225,gx0:58.87,gx1:613.315,ax:58.8632,bx0:58.9897,bx1:613.212,Y0:13.127,Y1:174.332,bhr:.4018,majW:.787078,tY:190.36,dx:4.15,lx:50.1,ld:3.5,
+  sqY:201.748,legY:209,legC:336,legO:10,legG:11,
+  leg:{'yearly':[64,73.75],'start and end of placement':[112,122.3],'start of placement':[262,272.1],'end of placement':[369,379.05],'one off payment':[472,481.8],'none':[572,582.25]}},
+ reloc:{pad:10,W:648,H:225,gx0:58.434,gx1:613.54,ax:58.4264,bx0:58.553,bx1:613.436,Y0:13.4854,Y1:174.825,bhr:.3976,majW:1,tY:190.806,dx:4.1,lx:52.1,ld:2.7,
+  sqY:203.534,legY:210,legC:336,legO:10,legG:11,
+  leg:{'start and end of placement':[108,118.2],'start of placement':[262,272.2],'end of placement':[375,384.6],'not provided':[483,492.8]}},
+ housing:{pad:0,W:670,H:227,gx0:95.05,gx1:639.878,ax:94.973,bx0:95.0959,bx1:640.028,Y0:7.27271,Y1:181.265,bhr:.402,majW:1,tY:198.223,dx:3.5,lx:87.8,ld:3.7,
+  sqY:208.686,legY:216,legC:354,legO:11,legG:12,
+  leg:{'housing provided':[109.85,120.88],'housing allowance':[224.7,236],'allowance or housing provided':[346.6,357.26],'no housing benefit':[523.92,534.6]}},
+ medical:{pad:8,W:648,H:227,gx0:65.877,gx1:612.66,ax:65.8698,bx0:66.0115,bx1:612.825,Y0:12.1522,Y1:177.801,bhr:.3988,majW:1,tY:192.874,dx:5.1,lx:58.1,ld:3,
+  sqY:204.788,legY:212,legC:344.3,legO:11,legG:12,
+  leg:{'yes':[312,323.1],'no':[351,362.9]}},
+ pd:{pad:4,W:546,H:219,gx0:68.93,gx1:519.028,ax:68.9222,bx0:68.8057,bx1:518.933,Y0:11.6152,Y1:172.426,bhr:.398,majW:1,minW:.5,tY:187.05,dx:4.8,lx:62.5,ld:4.5,ink:'#00264B',
+  sqY:200,legY:207,legC:299.9,legO:10,legG:12,
+  leg:{'yes':[271.44,281.6],'no':[304.75,314.8]}},
+ tuition:{pad:10,W:562,H:222,gx0:59.83,gx1:529.584,ax:59.8345,bx0:59.9309,bx1:529.509,Y0:9.54138,Y1:171.653,bhr:.3991,majW:1,minW:.5,tY:187.378,dx:4.4,lx:56.1,ld:5.9,ink:'#00264B',
+  sqY:201.141,sqH:7.33,legY:208,legC:308.6,legO:9,legG:12,
+  leg:{'100% discount':[196,205.2],'discounted':[283.01,292.45],'no discount':[356.02,365.3]}}
+};
+const hbarBuilder=G=>function(names,rows,cols){
+  const n=rows.length,slot=(G.Y1-G.Y0)/n,bh=slot*G.bhr,bw=G.bx1-G.bx0,gw=G.gx1-G.gx0,yc=r=>G.Y1-slot*(r+.5),X=p=>G.gx0+gw*p/100,W=G.ink||'#FFFFFF';
+  const cum=rows.map(r=>{let a=0;return r.pc.map(p=>{const s=a;a+=p;return[s,a]})});
+  const bars=names.map((nm,ci)=>{
+    const d=rows.map((r,ri)=>{const [a,b]=cum[ri][ci],xa=G.bx0+bw*a/100,xb=G.bx0+bw*b/100,y=yc(ri);return b-a<.01?'':`M${f(xb)} ${f(y+bh/2)}H${f(xa)}V${f(y-bh/2)}H${f(xb)}V${f(y+bh/2)}Z`}).join('');
+    return d?`<path d="${d}" fill="${cols[ci%cols.length]}"/>`:''}).filter(Boolean);
+  const minor=[],major=[];
+  for(let p=2;p<=100;p+=2)(p%10?minor:major).push(`M${f(X(p))} ${G.Y0}V${G.Y1}`);
+  const axis=svgLn([`M${G.ax} ${G.Y1}V${G.Y0}`],G.majW,'#D9D9D9');
+  const ticks=[0,10,20,30,40,50,60,70,80,90,100].map(p=>svgTx(X(p)+G.dx,G.tY,p+'%',350,'middle',W));
+  const regs=rows.map((r,ri)=>svgTx(G.lx,yc(ri)+G.ld,r.region,400,'end',W));
+  const k=names.map(x=>x.trim().toLowerCase());
+  let pos;
+  if(k.every(x=>Object.hasOwn(G.leg,x))&&new Set(k).size===k.length)pos=k.map(x=>G.leg[x]);
+  else{const wd=names.map(x=>G.legO+tb(x)*11/13),tot=wd.reduce((a,b)=>a+b,0)+G.legG*(names.length-1);let x=G.legC-tot/2;pos=names.map((_,i)=>{const q=[x,x+G.legO];x+=wd[i]+G.legG;return q})}
+  const key=names.map((nm,ci)=>{const [sx,tx]=pos[ci];
+    return `<path d="M${f(sx+7)} ${G.sqY}H${f(sx)}V${f(G.sqY+(G.sqH||7))}H${f(sx+7)}V${G.sqY}Z" fill="${cols[ci%cols.length]}"/>\n<text x="${f(tx)}" y="${G.legY}" font-family="GT Eesti Pro Display" font-weight="400" fill="${W}" font-size="11" text-anchor="start">${esc(nm)}</text>`});
+  return `<svg width="${G.W}" height="${G.H}" viewBox="${-G.pad} 0 ${G.W} ${G.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[svgLn(minor,G.minW??.2,'#F2F2F2'),svgLn(major,G.majW,'#D9D9D9'),...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`};
+/* Charts that use the region-checkbox card (cmpCard): chart key -> SVG builder */
+const CMP_BUILD={cmp:cmpSvg,curric6:colSvg,marital8:stackBuilder(SG.marital8),dep8:stackBuilder(SG.dep8),flight:hbarBuilder(SH.flight),reloc:hbarBuilder(SH.reloc),housing:hbarBuilder(SH.housing),medical:hbarBuilder(SH.medical),pd:hbarBuilder(SH.pd),tuition:hbarBuilder(SH.tuition)};
+function cmpCard(ch,out){
+  const cfg=T[ch.k],{names,rows}=ch.cmp,SEL=CMP_SEL[ch.k]||(CMP_SEL[ch.k]={});
+  const data=rows.map(r=>{const w=[],v=r.vals.map(x=>{const q=parseFloat(String(x).replace('%',''));return isNaN(q)||q<0?0:q}),s=v.reduce((a,b)=>a+b,0);
+    if(s>0&&Math.abs(s-100)>.5)w.push(r.region+' adds up to '+f(s)+'%, so it is scaled to 100%.');
+    if(tb(r.region)>(cfg.lw||72))w.push('The "'+r.region+'" label may run outside the frame.');
+    return{region:r.region,w:(ch.k==='cmp'||cfg.stack)?w:[],ok:s>0,v,pc:v.map(x=>s>0?x/s*100:0)}}).filter(r=>r.ok);
+  if(!data.length){out.insertAdjacentHTML('beforeend','<div class="panel card warn">'+esc(cfg.name)+': no rows with values.</div>');return}
+  const name=($('fname').value||'{chart}').replace('{chart}',cfg.name).replace('{region}','').replace(/[^\w ()+&,.-]/g,'').replace(/\s+/g,' ').replace(/[\s-]+$/,'')+'.svg';
+  const job={name,svg:''};jobs.push(job);
+  const card=document.createElement('section');card.className='panel card';
+  card.innerHTML=`<header><h3>${esc(cfg.name)}<small>${cfg.W} x ${cfg.H}</small></h3><button class="pri">Download SVG</button><button>Copy SVG</button></header><div class="prev${cfg.light?'':' dark'}" style="max-width:${cfg.W*2+18}px;margin:auto"></div><p class="note">Comparison regions to include</p><div class="regions" role="group" aria-label="Comparison regions"></div><p class="note warn"></p>`;
+  const [b1,b2]=card.querySelectorAll('button'),prev=card.querySelector('.prev'),box=card.querySelector('.regions'),msg=card.querySelector('p.warn');
+  const draw=()=>{const sel=data.filter(r=>SEL[r.region]!==false);job.svg=CMP_BUILD[ch.k](names,sel,cfg.cols);prev.innerHTML=job.svg.replace(/font-family="GT Eesti Pro Display"/g,`font-family="'GT Eesti Pro Display', sans-serif"`);msg.textContent=sel.flatMap(r=>r.w).join(' ')};
+  data.forEach(r=>{const l=document.createElement('label'),i=document.createElement('input');i.type='checkbox';i.checked=SEL[r.region]!==false;
+    i.onchange=()=>{SEL[r.region]=i.checked;if(!data.some(d=>SEL[d.region]!==false)){SEL[r.region]=true;i.checked=true;return}draw()};
+    l.append(i,' '+r.region);box.appendChild(l)});
+  b1.onclick=()=>dl(job.name,job.svg);
+  b2.onclick=async()=>{try{await navigator.clipboard.writeText(job.svg);b2.textContent='Copied'}catch(e){b2.textContent='Copy blocked, use Download'}setTimeout(()=>b2.textContent='Copy SVG',1800)};
+  draw();out.appendChild(card)}
+const dl=(n,svg)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+let jobs=[];
+function run(){
+  const out=$('out');out.innerHTML='';jobs=[];
+  const charts=parse($('data').value),leader=Math.min(30,Math.max(3,+$('lead').value||8));
+  const missing=Object.keys(T).filter(k=>!charts.some(c=>c.k===k)).map(k=>T[k].name);
+  if(!charts.length){$('count').textContent='';$('all').hidden=true;out.innerHTML='<div class="panel warn">No chart blocks found. Each block needs its title on its own line, for example "Marital status", followed by its rows.</div>';return}
+  if(missing.length)out.insertAdjacentHTML('beforeend','<div class="panel card warn">Not found in the sheet: '+esc(missing.join(', '))+'.</div>');
+  charts.sort((a,b)=>Object.keys(T).indexOf(a.k)-Object.keys(T).indexOf(b.k)).forEach(ch=>{
+    if(T[ch.k].box){boxCard(ch,out);return}
+    if(CMP_BUILD[ch.k]){cmpCard(ch,out);return}
+    const cfg=T[ch.k],L=layout(ch.cells,cfg,leader);
+    if(!L.sl.length){out.insertAdjacentHTML('beforeend','<div class="panel card warn">'+esc(cfg.name)+': '+L.warns.join(' ')+'</div>');return}
+    const name=($('fname').value||'{chart}').replace('{chart}',cfg.name).replace('{region}',ch.region).replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').replace(/[\s-]+$/,'')+'.svg';
+    const svg=build(L,cfg,$('title').value,false);
+    jobs.push({name,svg});
+    const card=document.createElement('section');card.className='panel card';
+    card.innerHTML=`<header><h3>${esc(cfg.name)}<small>${esc(ch.region)} ${cfg.W} x ${cfg.H}</small></h3><button class="pri">Download SVG</button><button>Copy SVG</button></header><div class="prev${cfg.dark?' dark':''}" style="max-width:${cfg.W*2+18}px;margin:auto">${build(L,cfg,$('title').value,true)}</div>`+(L.warns.length?`<p class="note warn">${esc([...new Set(L.warns)].join(' '))}</p>`:'');
+    const [b1,b2]=card.querySelectorAll('button');
+    b1.onclick=()=>dl(name,svg);
+    b2.onclick=async()=>{try{await navigator.clipboard.writeText(svg);b2.textContent='Copied'}catch(e){b2.textContent='Copy blocked, use Download'}setTimeout(()=>b2.textContent='Copy SVG',1800)};
+    out.appendChild(card)});
+  $('count').textContent=jobs.length+(jobs.length===1?' chart':' charts');
+  $('all').hidden=jobs.length<2}
+$('all').onclick=()=>jobs.forEach((j,i)=>setTimeout(()=>dl(j.name,j.svg),i*350));
+['data','title','fname','lead'].forEach(id=>$(id).addEventListener('input',run));
+$('data').value=S;run();
+</script>
+</body>
+</html>
