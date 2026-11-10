@@ -69,21 +69,21 @@ const T={
  curric:{name:'Curriculum experience (page 4)',W:206,H:240,bar:1,cols:['#3FA9B3','#FF725E','#99D1D7']},
  age:{name:'Age distribution (page 4)',W:522,H:228,age:1,G:{AX0:62.156,AX1:513.797,AY0:175.778,AY1:44.1079,bb:175.908,ts:11,yx:57.45,yo:2.35,xy:189.31,yt:[26.18,105.2],xt:[294.37,210.11],tt:[278.8,15]}},
  age6:{name:'Age distribution (page 6)',W:684,H:228,age:1,pat:['#405C78','#3FA9B3','#405C78','#3FA9B3','#3FA9B3','#405C78','#3FA9B3','#405C78','#3FA9B3'],G:{AX0:70.6208,AX1:668.455,AY0:181.197,AY1:39.7285,bb:181.315,ts:13,yx:67.58,yo:3.2,xy:195.46,yt:[23.48,104.4],xt:[368.63,219],tt:[357.75,17]}},
- cmp:{name:'Country of qualification (page 5)',W:654,H:360,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
+ cmp:{name:'Country of qualification (page 5)',W:654,H:360,lw:999,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
  curric6:{name:'Curriculum experience (page 6)',W:574,H:321,cols:['#3FA9B3','#FF725E','#99D1D7']},
- marital8:{name:'Marital status (page 8)',W:639,H:240,stack:1,light:1,lw:62,cols:['#3FA9B3','#99D1D7','#405C78']},
- dep8:{name:'Dependents (page 8)',W:639,H:240,stack:1,light:1,lw:58,cols:['#3FA9B3','#99D1D7','#405C78','#00264B','#7F93A5']},
+ marital8:{name:'Marital status (page 8)',W:639,H:240,stack:1,light:1,lw:999,cols:['#3FA9B3','#99D1D7','#405C78']},
+ dep8:{name:'Dependents (page 8)',W:639,H:240,stack:1,light:1,lw:999,cols:['#3FA9B3','#99D1D7','#405C78','#00264B','#7F93A5']},
  appvac:{name:'Applications vs vacancies (page 9)',W:947,H:273,div:1,dark:1,G:{x0:46.839,x1:931.1,yt:12.268,yb:247.629,lo:-30,hi:50,lx:41,ly:4.04,cy:264.751,axo:.12}},
  candpref:{name:'Candidate preferences (page 11)',W:651,H:460,cs:1,dark:1,cols:['#FF725E','#3FA9B3','#99D1D7','#405C78','#00264B','#7F93A5'],
   G:{x0:40.0142,x1:635.756,yt:21.4631,yb:329.106,lo:0,hi:90,lx:34.4,ly:2.4,axo:.193,cy:349.704,lh:15,wrap:82,bwr:.3996,lc:[93.9,221.85,337.82,458.1,579.5],
    sqW:8,sqY:[409.619,418.381],legY:418.238,legC:325.5,legO:12.75,legG:13.1,leg:{essential:[254,266.85],important:[328,340.6]}}},
  salary:{name:'Salaries box and whisker (page 13)',W:756,H:245,box:1,light:1},
- flight:{name:'Flight allowance (page 15)',W:648,H:225,stack:1,lw:58,cols:['#FF725E','#3FA9B3','#99D1D7','#405C78','#7F93A5','#BFC9D2']},
- reloc:{name:'Relocation allowance (page 15)',W:648,H:225,stack:1,lw:60,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
- housing:{name:'Housing benefits (page 16)',W:670,H:227,stack:1,lw:85,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
- medical:{name:'Medical benefits (page 16)',W:648,H:227,stack:1,lw:64,cols:['#3FA9B3','#BFC9D2']},
- pd:{name:'Professional development budget (page 17)',W:546,H:219,stack:1,light:1,lw:64,cols:['#3FA9B3','#BFC9D2']},
- tuition:{name:'Tuition fee subsidy (page 17)',W:562,H:222,stack:1,light:1,lw:64,cols:['#3FA9B3','#99D1D7','#BFC9D2']}
+ flight:{name:'Flight allowance (page 15)',W:648,H:225,stack:1,lw:999,cols:['#FF725E','#3FA9B3','#99D1D7','#405C78','#7F93A5','#BFC9D2']},
+ reloc:{name:'Relocation allowance (page 15)',W:648,H:225,stack:1,lw:999,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
+ housing:{name:'Housing benefits (page 16)',W:670,H:227,stack:1,lw:999,cols:['#FF725E','#3FA9B3','#99D1D7','#BFC9D2']},
+ medical:{name:'Medical benefits (page 16)',W:648,H:227,stack:1,lw:999,cols:['#3FA9B3','#BFC9D2']},
+ pd:{name:'Professional development budget (page 17)',W:515,H:219,stack:1,light:1,lw:999,cols:['#3FA9B3','#BFC9D2']},
+ tuition:{name:'Tuition fee subsidy (page 17)',W:515,H:222,stack:1,light:1,lw:999,cols:['#3FA9B3','#99D1D7','#BFC9D2']}
 };
 const LH=15.2,FS=13,$=id=>document.getElementById(id);
 const rad=d=>d*Math.PI/180,f=n=>+n.toFixed(2),isNum=v=>/^-?\d+(\.\d+)?%?$/.test(v||'');
@@ -257,6 +257,7 @@ function buildAge(L,cfg,preview){
 const CP={X0:86.2404,X1:619.478,bx0:86.3677,bx1:619.397,Y0:53.2007,Y1:327.195};
 const CMP_SEL={};
 function cmpSvg(names,rows,cols){
+  const pad=Math.ceil(Math.max(0,...rows.map(r=>tb(r.region)*1.06+1-77)));
   const n=rows.length,slot=(CP.Y1-CP.Y0)/n,bh=slot*.4033,pw=CP.X1-CP.X0,bw=CP.bx1-CP.bx0;
   const tx=(x,y,t,w,a)=>`<text x="${f(x)}" y="${f(y)}" font-family="GT Eesti Pro Display" font-weight="${w}" fill="#FFFFFF" font-size="${FS}" text-anchor="${a}">${esc(t)}</text>`;
   const ln=(d,w,c)=>`<path d="${d.join('')}" stroke-width="${w}" stroke-miterlimit="10" stroke-linejoin="round" stroke="${c}"/>`;
@@ -273,7 +274,7 @@ function cmpSvg(names,rows,cols){
   let x=347.4-tot/2;
   const key=names.map((nm,ci)=>{const s=`<path d="M${f(x+8)} 22H${f(x)}V30H${f(x+8)}V22Z" fill="${cols[ci%cols.length]}"/>\n`+tx(x+12.3,30,nm,400,'start');x+=wd[ci]+17;return s});
   const axis=ln([`M${CP.X0} ${CP.Y1}L${CP.X0} ${CP.Y0}`],1,'#D9D9D9');
-  return `<svg width="654" height="360" viewBox="0 0 654 360" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[ln(minor,.2,'#F2F2F2'),ln(major,1,'#D9D9D9'),...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`}
+  return `<svg width="${654+pad}" height="360" viewBox="${-pad} 0 ${654+pad} 360" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[ln(minor,.2,'#F2F2F2'),ln(major,1,'#D9D9D9'),...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`}
 const CC={X0:39.4709,X1:559.683,Y0:289.363,Y1:47.9951,bb:289.517};
 function colSvg(names,rows,cols){
   const n=rows.length,ns=names.length,slot=(CC.X1-CC.X0)/n,bw=slot*.1749,gp=slot*.0488,cw=ns*bw+(ns-1)*gp;
@@ -378,6 +379,7 @@ function stackLegend(G,names){
   const wd=names.map(n=>G.legO+tb(n)*1.07),tot=wd.reduce((a,b)=>a+b,0)+G.legG*(names.length-1);
   let x=G.legC-tot/2;return names.map((n,i)=>{const p=[x,x+G.legO];x+=wd[i]+G.legG;return p})}
 const stackBuilder=G=>function(names,rows,cols){
+  const pad=Math.ceil(Math.max(0,...rows.map(r=>tb(r.region)*1.06+1-G.labX)));
   const n=rows.length,slot=(G.Y1-G.Y0)/n,bh=slot*G.bhr,bw=G.bx1-G.bx0,yc=r=>G.Y1-slot*(r+.5);
   const cum=rows.map(r=>{let a=0;return r.pc.map(p=>{const s=a;a+=p;return[s,a]})});
   const bars=names.map((nm,ci)=>{
@@ -389,7 +391,7 @@ const stackBuilder=G=>function(names,rows,cols){
   const regs=rows.map((r,ri)=>svgTx(G.labX,yc(ri)+G.labDy,r.region,400,'end'));
   const pos=stackLegend(G,names);
   const key=names.map((nm,ci)=>{const [sx,tx]=pos[ci];return `<path d="M${f(sx+G.sqW)} ${G.sqY[0]}H${f(sx)}V${G.sqY[1]}H${f(sx+G.sqW)}V${G.sqY[0]}Z" fill="${cols[ci%cols.length]}"/>\n`+svgTx(tx,G.legY,nm,400,'start')});
-  return `<svg width="${G.W}" height="${G.H}" viewBox="0 0 ${G.W} ${G.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[...grid,...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`}
+  return `<svg width="${G.W+pad}" height="${G.H}" viewBox="${-pad} 0 ${G.W+pad} ${G.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[...grid,...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`}
 /* Salaries box and whisker (page 13): one box per region and series (new, exp), geometry measured from the Figma export (756 x 245).
    Sheet rows: hidden = bottom of the box, lower and upper = the two halves of the box, whisker top and bottom = distance beyond the box.
    Axis is $0 to $160,000 as in Figma and only grows (in $20,000 steps) if a whisker goes beyond it. */
@@ -445,7 +447,7 @@ function boxCard(ch,out){
   b1.onclick=()=>dl(job.name,job.svg);
   b2.onclick=async()=>{try{await navigator.clipboard.writeText(job.svg);b2.textContent='Copied'}catch(e){b2.textContent='Copy blocked, use Download'}setTimeout(()=>b2.textContent='Copy SVG',1800)};
   draw();out.appendChild(card)}
-/* Page 15 allowance charts: 100% stacked bars on the dark slide, legend at the bottom (638 x 225 plus a left margin, pad, so long region names such as Cambodia stay inside the frame), geometry measured from each Figma export.
+/* Page 15 allowance charts: 100% stacked bars on the dark slide, legend at the bottom (base frame plus a left margin, pad. The margin grows automatically when a region name is wider than the space left of the axis, so long names such as South America stay inside the frame), geometry measured from each Figma export.
    Grid (gx0, gx1) and bars (bx0, bx1) differ slightly in Figma, so both are kept. leg: [square x, text x] per legend item when the names are the standard ones,
    otherwise the legend is centred under the plot. One builder, driven by a geometry object per chart (SH). */
 const SH={
@@ -461,15 +463,15 @@ const SH={
  medical:{pad:8,W:648,H:227,gx0:65.877,gx1:612.66,ax:65.8698,bx0:66.0115,bx1:612.825,Y0:12.1522,Y1:177.801,bhr:.3988,majW:1,tY:192.874,dx:5.1,lx:58.1,ld:3,
   sqY:204.788,legY:212,legC:344.3,legO:11,legG:12,
   leg:{'yes':[312,323.1],'no':[351,362.9]}},
- pd:{pad:4,W:546,H:219,gx0:68.93,gx1:519.028,ax:68.9222,bx0:68.8057,bx1:518.933,Y0:11.6152,Y1:172.426,bhr:.398,majW:1,minW:.5,tY:187.05,dx:4.8,lx:62.5,ld:4.5,ink:'#00264B',
+ pd:{pad:4,W:515,H:219,sc:.9311,gx0:68.93,gx1:519.028,ax:68.9222,bx0:68.8057,bx1:518.933,Y0:11.6152,Y1:172.426,bhr:.398,majW:1,minW:.5,tY:187.05,dx:4.8,lx:62.5,ld:4.5,ink:'#00264B',
   sqY:200,legY:207,legC:299.9,legO:10,legG:12,
   leg:{'yes':[271.44,281.6],'no':[304.75,314.8]}},
- tuition:{pad:10,W:562,H:222,gx0:59.83,gx1:529.584,ax:59.8345,bx0:59.9309,bx1:529.509,Y0:9.54138,Y1:171.653,bhr:.3991,majW:1,minW:.5,tY:187.378,dx:4.4,lx:56.1,ld:5.9,ink:'#00264B',
+ tuition:{pad:10,W:515,H:222,sc:.9,gx0:59.83,gx1:529.584,ax:59.8345,bx0:59.9309,bx1:529.509,Y0:9.54138,Y1:171.653,bhr:.3991,majW:1,minW:.5,tY:187.378,dx:4.4,lx:56.1,ld:5.9,ink:'#00264B',
   sqY:201.141,sqH:7.33,legY:208,legC:308.6,legO:9,legG:12,
   leg:{'100% discount':[196,205.2],'discounted':[283.01,292.45],'no discount':[356.02,365.3]}}
 };
 const hbarBuilder=G=>function(names,rows,cols){
-  const n=rows.length,slot=(G.Y1-G.Y0)/n,bh=slot*G.bhr,bw=G.bx1-G.bx0,gw=G.gx1-G.gx0,yc=r=>G.Y1-slot*(r+.5),X=p=>G.gx0+gw*p/100,W=G.ink||'#FFFFFF';
+  const n=rows.length,need=Math.ceil(Math.max(0,...rows.map(r=>tb(r.region)*1.06+1-G.lx))),pad=Math.max(G.pad,need),Wd=G.W+pad-G.pad,slot=(G.Y1-G.Y0)/n,bh=slot*G.bhr,sc=G.sc||1,bw=(G.bx1-G.bx0)*sc,gw=(G.gx1-G.gx0)*sc,yc=r=>G.Y1-slot*(r+.5),X=p=>G.gx0+gw*p/100,W=G.ink||'#FFFFFF';
   const cum=rows.map(r=>{let a=0;return r.pc.map(p=>{const s=a;a+=p;return[s,a]})});
   const bars=names.map((nm,ci)=>{
     const d=rows.map((r,ri)=>{const [a,b]=cum[ri][ci],xa=G.bx0+bw*a/100,xb=G.bx0+bw*b/100,y=yc(ri);return b-a<.01?'':`M${f(xb)} ${f(y+bh/2)}H${f(xa)}V${f(y-bh/2)}H${f(xb)}V${f(y+bh/2)}Z`}).join('');
@@ -485,7 +487,7 @@ const hbarBuilder=G=>function(names,rows,cols){
   else{const wd=names.map(x=>G.legO+tb(x)*11/13),tot=wd.reduce((a,b)=>a+b,0)+G.legG*(names.length-1);let x=G.legC-tot/2;pos=names.map((_,i)=>{const q=[x,x+G.legO];x+=wd[i]+G.legG;return q})}
   const key=names.map((nm,ci)=>{const [sx,tx]=pos[ci];
     return `<path d="M${f(sx+7)} ${G.sqY}H${f(sx)}V${f(G.sqY+(G.sqH||7))}H${f(sx+7)}V${G.sqY}Z" fill="${cols[ci%cols.length]}"/>\n<text x="${f(tx)}" y="${G.legY}" font-family="GT Eesti Pro Display" font-weight="400" fill="${W}" font-size="11" text-anchor="start">${esc(nm)}</text>`});
-  return `<svg width="${G.W}" height="${G.H}" viewBox="${-G.pad} 0 ${G.W} ${G.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[svgLn(minor,G.minW??.2,'#F2F2F2'),svgLn(major,G.majW,'#D9D9D9'),...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`};
+  return `<svg width="${Wd}" height="${G.H}" viewBox="${-pad} 0 ${Wd} ${G.H}" fill="none" xmlns="http://www.w3.org/2000/svg">\n${[svgLn(minor,G.minW??.2,'#F2F2F2'),svgLn(major,G.majW,'#D9D9D9'),...bars,axis,...ticks,...regs,...key].join('\n')}\n</svg>\n`};
 /* Charts that use the region-checkbox card (cmpCard): chart key -> SVG builder */
 const CMP_BUILD={cmp:cmpSvg,curric6:colSvg,marital8:stackBuilder(SG.marital8),dep8:stackBuilder(SG.dep8),flight:hbarBuilder(SH.flight),reloc:hbarBuilder(SH.reloc),housing:hbarBuilder(SH.housing),medical:hbarBuilder(SH.medical),pd:hbarBuilder(SH.pd),tuition:hbarBuilder(SH.tuition)};
 function cmpCard(ch,out){
